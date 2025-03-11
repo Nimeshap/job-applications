@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1678429200000",
+    "date": "2023-03-10",
+    "company": "Google",
+    "position": "Frontend Developer",
+    "employees": "150000",
+    "link": "https://careers.google.com/jobs"
+  },
+  {
+    "id": "1678515600000",
+    "date": "2023-03-11",
+    "company": "Microsoft",
+    "position": "Software Engineer",
+    "employees": "180000",
+    "link": "https://careers.microsoft.com"
+  },
+  {
+    "id": "1678602000000",
+    "date": "2023-03-12",
+    "company": "Amazon",
+    "position": "Full Stack Developer",
+    "employees": "1300000",
+    "link": "https://amazon.jobs"
+  }
+]
