@@ -168,62 +168,20 @@
             color: #6c757d;
         }
 
-        .spinner {
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
             display: inline-block;
-            width: 1.5rem;
-            height: 1.5rem;
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 0.5rem;
-            vertical-align: middle;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            color: #6c757d;
-        }
-
-        .status-message {
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border-radius: 5px;
-            text-align: center;
-        }
-
-        .status-success {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-
-        .status-error {
-            background-color: #f8d7da;
-            color: #842029;
-        }
-
-        .login-container {
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-
-        .login-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .user-email {
-            font-weight: 500;
-            margin-left: 0.5rem;
+        
+        .file-input-container input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
         }
         
         @media (max-width: 768px) {
@@ -267,17 +225,15 @@
     </header>
     
     <div class="container">
-        <div id="statusMessage" class="status-message" style="display: none;"></div>
-        
-        <div class="login-container">
-            <div id="loginStatus" class="login-status">
-                <span>You are not logged in</span>
-            </div>
-            <button id="loginButton" class="btn">Log In with Google</button>
-            <button id="logoutButton" class="btn btn-danger" style="display: none;">Log Out</button>
-        </div>
-        
         <div class="form-container">
+            <div class="file-actions">
+                <div class="file-input-container">
+                    <button class="btn">Import JSON File</button>
+                    <input type="file" id="importFile" accept=".json">
+                </div>
+                <button id="exportButton" class="btn btn-success">Export to JSON File</button>
+            </div>
+            
             <h2>Add New Application</h2>
             <form id="jobForm">
                 <input type="hidden" id="editJobId" value="">
@@ -332,319 +288,237 @@
                         <!-- Job entries will be added here by JavaScript -->
                     </tbody>
                 </table>
-                <div id="loadingMessage" class="loading-message">
-                    <div class="spinner"></div>
-                    <span>Loading your job applications...</span>
-                </div>
-                <div id="emptyMessage" class="empty-message" style="display: none;">
+                <div id="emptyMessage" class="empty-message">
                     <p>No job applications yet. Add your first application above!</p>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Firebase SDK -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-database-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-auth-compat.min.js"></script>
-    
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Firebase Configuration
-            const firebaseConfig = {
-                apiKey: "AIzaSyBtftymAUeeu98IsNkddKoXIEVCW20x52U",
-                authDomain: "job-application-tracker-b6dcb.firebaseapp.com",
-                databaseURL: "https://job-application-tracker-b6dcb-default-rtdb.firebaseio.com",
-                projectId: "job-application-tracker-b6dcb",
-                storageBucket: "job-application-tracker-b6dcb.firebasestorage.app",
-                messagingSenderId: "1002486334780",
-                appId: "1:1002486334780:web:2a0c3b6e9b127735588a39",
-                measurementId: "G-HB4HDNHRQT"
-            };
-            
-            // Initialize Firebase
-            firebase.initializeApp(firebaseConfig);
-            
-            // Get database and auth references
-            const database = firebase.database();
-            const auth = firebase.auth();
-            
             // Set default date to today
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('date').value = today;
             
-            // DOM elements
-            const jobForm = document.getElementById('jobForm');
-            const resetButton = document.getElementById('resetButton');
-            const loginButton = document.getElementById('loginButton');
-            const logoutButton = document.getElementById('logoutButton');
-            const loginStatus = document.getElementById('loginStatus');
-            const loadingMessage = document.getElementById('loadingMessage');
-            const emptyMessage = document.getElementById('emptyMessage');
-            const statusMessage = document.getElementById('statusMessage');
-            
-            // Auth state change listener
-            auth.onAuthStateChanged(function(user) {
-                if (user) {
-                    // User is signed in
-                    loginStatus.innerHTML = `
-                        <span>Logged in as: </span>
-                        <span class="user-email">${user.email}</span>
-                    `;
-                    loginButton.style.display = 'none';
-                    logoutButton.style.display = 'inline-block';
-                    
-                    // Load jobs for this user
-                    loadJobs(user.uid);
-                    
-                    // Enable form
-                    jobForm.querySelectorAll('input, button').forEach(el => {
-                        el.disabled = false;
-                    });
-                } else {
-                    // User is signed out
-                    loginStatus.innerHTML = '<span>You are not logged in</span>';
-                    loginButton.style.display = 'inline-block';
-                    logoutButton.style.display = 'none';
-                    
-                    // Clear and disable table
-                    document.getElementById('jobsTableBody').innerHTML = '';
-                    loadingMessage.style.display = 'none';
-                    emptyMessage.innerHTML = '<p>Please log in to view and manage your job applications.</p>';
-                    emptyMessage.style.display = 'block';
-                    
-                    // Disable form
-                    jobForm.querySelectorAll('input, button').forEach(el => {
-                        el.disabled = true;
-                    });
-                }
-            });
+            // Initialize jobs array (empty by default since we're using file-based storage)
+            window.jobs = [];
             
             // Add event listeners
-            jobForm.addEventListener('submit', saveJob);
-            resetButton.addEventListener('click', resetForm);
-            loginButton.addEventListener('click', googleLogin);
-            logoutButton.addEventListener('click', logout);
+            document.getElementById('jobForm').addEventListener('submit', saveJob);
+            document.getElementById('resetButton').addEventListener('click', resetForm);
+            document.getElementById('exportButton').addEventListener('click', exportJobs);
+            document.getElementById('importFile').addEventListener('change', importJobs);
             
-            function googleLogin() {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                auth.signInWithPopup(provider)
-                    .then((result) => {
-                        showStatusMessage('Logged in successfully!', 'success');
-                    })
-                    .catch((error) => {
-                        showStatusMessage('Login failed: ' + error.message, 'error');
-                    });
-            }
-            
-            function logout() {
-                auth.signOut()
-                    .then(() => {
-                        showStatusMessage('Logged out successfully!', 'success');
-                    })
-                    .catch((error) => {
-                        showStatusMessage('Logout failed: ' + error.message, 'error');
-                    });
-            }
-            
-            function saveJob(e) {
-                e.preventDefault();
-                
-                if (!auth.currentUser) {
-                    showStatusMessage('Please log in to save job applications.', 'error');
-                    return;
-                }
-                
-                const userId = auth.currentUser.uid;
-                const editJobId = document.getElementById('editJobId').value;
-                const date = document.getElementById('date').value;
-                const company = document.getElementById('company').value;
-                const position = document.getElementById('position').value;
-                const employees = document.getElementById('employees').value || 'N/A';
-                const link = document.getElementById('link').value;
-                
-                const job = {
-                    date,
-                    company,
-                    position,
-                    employees,
-                    link,
-                    createdAt: firebase.database.ServerValue.TIMESTAMP,
-                    updatedAt: firebase.database.ServerValue.TIMESTAMP
-                };
-                
-                let jobRef;
-                
-                if (editJobId) {
-                    // Update existing job
-                    jobRef = database.ref(`users/${userId}/jobs/${editJobId}`);
-                    job.updatedAt = firebase.database.ServerValue.TIMESTAMP;
-                    
-                    jobRef.update(job)
-                        .then(() => {
-                            showStatusMessage('Job application updated successfully!', 'success');
-                            resetForm();
-                        })
-                        .catch((error) => {
-                            showStatusMessage('Failed to update job application: ' + error.message, 'error');
-                        });
-                } else {
-                    // Add new job with auto-generated key
-                    jobRef = database.ref(`users/${userId}/jobs`).push();
-                    
-                    jobRef.set(job)
-                        .then(() => {
-                            showStatusMessage('Job application saved successfully!', 'success');
-                            resetForm();
-                        })
-                        .catch((error) => {
-                            showStatusMessage('Failed to save job application: ' + error.message, 'error');
-                        });
-                }
-            }
-            
-            function loadJobs(userId) {
-                const jobsRef = database.ref(`users/${userId}/jobs`);
-                const tableBody = document.getElementById('jobsTableBody');
-                
-                // Show loading message
-                loadingMessage.style.display = 'flex';
-                emptyMessage.style.display = 'none';
-                
-                // Listen for data changes
-                jobsRef.orderByChild('date').on('value', (snapshot) => {
-                    // Hide loading message
-                    loadingMessage.style.display = 'none';
-                    
-                    // Clear table
-                    tableBody.innerHTML = '';
-                    
-                    if (!snapshot.exists()) {
-                        emptyMessage.innerHTML = '<p>No job applications yet. Add your first application above!</p>';
-                        emptyMessage.style.display = 'block';
-                        return;
-                    }
-                    
-                    emptyMessage.style.display = 'none';
-                    
-                    // Convert to array and sort by date (newest first)
-                    const jobs = [];
-                    snapshot.forEach((childSnapshot) => {
-                        const job = childSnapshot.val();
-                        job.id = childSnapshot.key;
-                        jobs.push(job);
-                    });
-                    
-                    jobs.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    
-                    // Add jobs to table
-                    jobs.forEach(job => {
-                        const row = document.createElement('tr');
-                        
-                        const formattedDate = formatDate(job.date);
-                        
-                        row.innerHTML = `
-                            <td>${formattedDate}</td>
-                            <td>${escapeHTML(job.company)}</td>
-                            <td>${escapeHTML(job.position)}</td>
-                            <td>${escapeHTML(job.employees.toString())}</td>
-                            <td><a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer">View</a></td>
-                            <td class="action-cell">
-                                <button class="btn btn-sm btn-edit" onclick="editJob('${job.id}')">Edit</button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteJob('${job.id}')">Delete</button>
-                            </td>
-                        `;
-                        
-                        tableBody.appendChild(row);
-                    });
-                }, (error) => {
-                    loadingMessage.style.display = 'none';
-                    showStatusMessage('Failed to load job applications: ' + error.message, 'error');
-                });
-            }
-            
-            // Make these functions available globally for the onclick handlers
-            window.editJob = function(id) {
-                if (!auth.currentUser) return;
-                
-                const userId = auth.currentUser.uid;
-                const jobRef = database.ref(`users/${userId}/jobs/${id}`);
-                
-                jobRef.once('value')
-                    .then((snapshot) => {
-                        const job = snapshot.val();
-                        if (!job) return;
-                        
-                        document.getElementById('editJobId').value = id;
-                        document.getElementById('date').value = job.date;
-                        document.getElementById('company').value = job.company;
-                        document.getElementById('position').value = job.position;
-                        document.getElementById('employees').value = job.employees === 'N/A' ? '' : job.employees;
-                        document.getElementById('link').value = job.link;
-                        
-                        document.getElementById('saveButton').textContent = 'Update Application';
-                        document.getElementById('resetButton').style.display = 'inline-block';
-                        
-                        // Scroll to the form
-                        document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
-                    })
-                    .catch((error) => {
-                        showStatusMessage('Failed to load job details: ' + error.message, 'error');
-                    });
-            };
-            
-            window.deleteJob = function(id) {
-                if (!auth.currentUser) return;
-                
-                if (confirm('Are you sure you want to delete this job application?')) {
-                    const userId = auth.currentUser.uid;
-                    const jobRef = database.ref(`users/${userId}/jobs/${id}`);
-                    
-                    jobRef.remove()
-                        .then(() => {
-                            showStatusMessage('Job application deleted successfully!', 'success');
-                        })
-                        .catch((error) => {
-                            showStatusMessage('Failed to delete job application: ' + error.message, 'error');
-                        });
-                }
-            };
-            
-            function resetForm() {
-                jobForm.reset();
-                document.getElementById('editJobId').value = '';
-                document.getElementById('date').value = new Date().toISOString().split('T')[0];
-                document.getElementById('saveButton').textContent = 'Save Application';
-                document.getElementById('resetButton').style.display = 'none';
-            }
-            
-            function formatDate(dateString) {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            }
-            
-            function escapeHTML(str) {
-                if (typeof str !== 'string') return str;
-                return str
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
-            }
-            
-            function showStatusMessage(message, type) {
-                const statusMessage = document.getElementById('statusMessage');
-                statusMessage.textContent = message;
-                statusMessage.className = 'status-message status-' + type;
-                statusMessage.style.display = 'block';
-                
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 5000);
+            // Check if we have jobs in temporary session storage (for demo purposes)
+            const tempJobs = sessionStorage.getItem('tempJobs');
+            if (tempJobs) {
+                window.jobs = JSON.parse(tempJobs);
+                loadJobs();
             }
         });
+        
+        function saveJob(e) {
+            e.preventDefault();
+            
+            const editJobId = document.getElementById('editJobId').value;
+            const date = document.getElementById('date').value;
+            const company = document.getElementById('company').value;
+            const position = document.getElementById('position').value;
+            const employees = document.getElementById('employees').value || 'N/A';
+            const link = document.getElementById('link').value;
+            
+            const job = {
+                id: editJobId || Date.now().toString(),
+                date,
+                company,
+                position,
+                employees,
+                link
+            };
+            
+            if (editJobId) {
+                // Update existing job
+                const index = window.jobs.findIndex(j => j.id === editJobId);
+                if (index !== -1) {
+                    window.jobs[index] = job;
+                }
+            } else {
+                // Add new job
+                window.jobs.push(job);
+            }
+            
+            // Save to session storage temporarily (for demo purposes)
+            sessionStorage.setItem('tempJobs', JSON.stringify(window.jobs));
+            
+            // Reset form and reload jobs
+            resetForm();
+            loadJobs();
+            
+            // Prompt user to save the file
+            const saveNow = confirm('Job saved! Would you like to export all jobs to a JSON file now?');
+            if (saveNow) {
+                exportJobs();
+            }
+        }
+        
+        function loadJobs() {
+            const tableBody = document.getElementById('jobsTableBody');
+            const emptyMessage = document.getElementById('emptyMessage');
+            
+            // Clear table
+            tableBody.innerHTML = '';
+            
+            if (window.jobs.length === 0) {
+                emptyMessage.style.display = 'block';
+                return;
+            }
+            
+            emptyMessage.style.display = 'none';
+            
+            // Sort jobs by date (newest first)
+            window.jobs.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Add jobs to table
+            window.jobs.forEach(job => {
+                const row = document.createElement('tr');
+                
+                const formattedDate = formatDate(job.date);
+                
+                row.innerHTML = `
+                    <td>${formattedDate}</td>
+                    <td>${escapeHTML(job.company)}</td>
+                    <td>${escapeHTML(job.position)}</td>
+                    <td>${escapeHTML(job.employees.toString())}</td>
+                    <td><a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer">View</a></td>
+                    <td class="action-cell">
+                        <button class="btn btn-sm btn-edit" onclick="editJob('${job.id}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteJob('${job.id}')">Delete</button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function editJob(id) {
+            const job = window.jobs.find(job => job.id === id);
+            if (!job) return;
+            
+            document.getElementById('editJobId').value = job.id;
+            document.getElementById('date').value = job.date;
+            document.getElementById('company').value = job.company;
+            document.getElementById('position').value = job.position;
+            document.getElementById('employees').value = job.employees === 'N/A' ? '' : job.employees;
+            document.getElementById('link').value = job.link;
+            
+            document.getElementById('saveButton').textContent = 'Update Application';
+            document.getElementById('resetButton').style.display = 'inline-block';
+            
+            // Scroll to the form
+            document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function deleteJob(id) {
+            if (confirm('Are you sure you want to delete this job application?')) {
+                window.jobs = window.jobs.filter(job => job.id !== id);
+                sessionStorage.setItem('tempJobs', JSON.stringify(window.jobs));
+                loadJobs();
+                
+                // Prompt user to save the file
+                const saveNow = confirm('Job deleted! Would you like to export the updated jobs to a JSON file now?');
+                if (saveNow) {
+                    exportJobs();
+                }
+            }
+        }
+        
+        function resetForm() {
+            document.getElementById('jobForm').reset();
+            document.getElementById('editJobId').value = '';
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('saveButton').textContent = 'Save Application';
+            document.getElementById('resetButton').style.display = 'none';
+        }
+        
+        function exportJobs() {
+            const jobsData = JSON.stringify(window.jobs, null, 2);
+            const blob = new Blob([jobsData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'job_applications.json';
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+        
+        function importJobs(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const importedJobs = JSON.parse(e.target.result);
+                    if (Array.isArray(importedJobs)) {
+                        if (window.jobs.length > 0) {
+                            if (confirm('Do you want to replace your current jobs with the imported ones? Click Cancel to merge them instead.')) {
+                                window.jobs = importedJobs;
+                            } else {
+                                // Merge jobs, avoiding duplicates by ID
+                                const existingIds = new Set(window.jobs.map(job => job.id));
+                                for (const job of importedJobs) {
+                                    if (!existingIds.has(job.id)) {
+                                        window.jobs.push(job);
+                                        existingIds.add(job.id);
+                                    }
+                                }
+                            }
+                            
+                            sessionStorage.setItem('tempJobs', JSON.stringify(window.jobs));
+                            loadJobs();
+                            alert('Jobs imported successfully!');
+                        } else {
+                            window.jobs = importedJobs;
+                            sessionStorage.setItem('tempJobs', JSON.stringify(window.jobs));
+                            loadJobs();
+                            alert('Jobs imported successfully!');
+                        }
+                    } else {
+                        alert('Invalid JSON file format. Expected an array of job objects.');
+                    }
+                } catch (error) {
+                    alert('Error importing jobs: ' + error.message);
+                }
+                
+                // Reset file input
+                event.target.value = '';
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+        
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return str;
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
     </script>
 </body>
 </html>
