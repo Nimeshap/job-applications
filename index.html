@@ -71,6 +71,11 @@
             font-size: 1rem;
         }
         
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
         input:focus, textarea:focus {
             outline: none;
             border-color: var(--primary-color);
@@ -184,6 +189,18 @@
             cursor: pointer;
         }
         
+        .description-cell {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .description-cell:hover {
+            white-space: normal;
+            overflow: visible;
+        }
+        
         @media (max-width: 768px) {
             th, td {
                 padding: 0.75rem 0.5rem;
@@ -215,16 +232,29 @@
             th, td {
                 white-space: nowrap;
             }
+            
+            .description-cell {
+                max-width: 150px;
+            }
         }
     </style>
 </head>
 <body>
-    <header>
+    <header class="header" id="header" style="display: none;">
         <h1>Job Application Tracker</h1>
         <p>Keep track of your job applications in one place</p>
     </header>
+
+    <div class="login-container" id="login-container">
+        <form id="loginForm">
+            <div class="form-group">
+                <input type="text" id="key" placeholder="key" required>
+            </div>
+            <button type="submit" class="btn" onclick="login()">Enter</button>
+        </form>
+    </div>
     
-    <div class="container">
+    <div class="container" id="container" style="display: none;">
         <div class="form-container">
             <div class="file-actions">
                 <div class="file-input-container">
@@ -259,6 +289,11 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="description">Job Description</label>
+                    <textarea id="description" placeholder="Enter job description, requirements, or any notes"></textarea>
+                </div>
+                
+                <div class="form-group">
                     <label for="link">Job Link</label>
                     <input type="url" id="link" placeholder="https://example.com/job" required>
                 </div>
@@ -280,6 +315,7 @@
                             <th>Company</th>
                             <th>Position</th>
                             <th>Employees</th>
+                            <th>Description</th>
                             <th>Link</th>
                             <th>Actions</th>
                         </tr>
@@ -296,6 +332,22 @@
     </div>
     
     <script>
+
+        // Add this event listener for the login form
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form submission/page reload
+            login();
+        });
+
+        function login() {
+            const username = document.getElementById('key').value;
+            if (username === 'Saki123@') {
+                document.querySelector('.login-container').style.display = 'none';
+                document.querySelector('.container').style.display = 'block';
+                document.querySelector('.header').style.display = 'block';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Set default date to today
             const today = new Date().toISOString().split('T')[0];
@@ -326,6 +378,7 @@
             const company = document.getElementById('company').value;
             const position = document.getElementById('position').value;
             const employees = document.getElementById('employees').value || 'N/A';
+            const description = document.getElementById('description').value;
             const link = document.getElementById('link').value;
             
             const job = {
@@ -334,6 +387,7 @@
                 company,
                 position,
                 employees,
+                description,
                 link
             };
             
@@ -354,12 +408,6 @@
             // Reset form and reload jobs
             resetForm();
             loadJobs();
-            
-            // Prompt user to save the file
-            const saveNow = confirm('Job saved! Would you like to export all jobs to a JSON file now?');
-            if (saveNow) {
-                exportJobs();
-            }
         }
         
         function loadJobs() {
@@ -384,12 +432,14 @@
                 const row = document.createElement('tr');
                 
                 const formattedDate = formatDate(job.date);
+                const description = job.description || 'No description';
                 
                 row.innerHTML = `
                     <td>${formattedDate}</td>
                     <td>${escapeHTML(job.company)}</td>
                     <td>${escapeHTML(job.position)}</td>
                     <td>${escapeHTML(job.employees.toString())}</td>
+                    <td class="description-cell" title="${escapeHTML(description)}">${escapeHTML(description)}</td>
                     <td><a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer">View</a></td>
                     <td class="action-cell">
                         <button class="btn btn-sm btn-edit" onclick="editJob('${job.id}')">Edit</button>
@@ -410,6 +460,7 @@
             document.getElementById('company').value = job.company;
             document.getElementById('position').value = job.position;
             document.getElementById('employees').value = job.employees === 'N/A' ? '' : job.employees;
+            document.getElementById('description').value = job.description || '';
             document.getElementById('link').value = job.link;
             
             document.getElementById('saveButton').textContent = 'Update Application';
@@ -424,12 +475,6 @@
                 window.jobs = window.jobs.filter(job => job.id !== id);
                 sessionStorage.setItem('tempJobs', JSON.stringify(window.jobs));
                 loadJobs();
-                
-                // Prompt user to save the file
-                const saveNow = confirm('Job deleted! Would you like to export the updated jobs to a JSON file now?');
-                if (saveNow) {
-                    exportJobs();
-                }
             }
         }
         
